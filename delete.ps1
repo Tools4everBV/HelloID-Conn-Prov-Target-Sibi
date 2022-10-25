@@ -68,7 +68,7 @@ try {
     try {
         Write-Verbose "Verifying if Sibi account for [$($p.DisplayName)] exists"
         $splatParams = @{
-            Uri         = "$($config.BaseUrl)/api/employees/get/by-en/$aRef2222"
+            Uri         = "$($config.BaseUrl)/api/employees/get/by-en/$aRef"
             Method      = 'GET'
             Headers     = $headers
             ContentType = 'application/json'
