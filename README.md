@@ -19,6 +19,7 @@
 - [Getting started](#Getting-started)
   + [Connection settings](#Connection-settings)
   + [Prerequisites](#Prerequisites)
+  + [Remarks)(#Remarks)
 - [Getting help](#Getting-help)
 - [HelloID Docs](#HelloID-docs)
 
@@ -30,8 +31,9 @@ _HelloID-Conn-Prov-Target-Sibi_ is a _target_ connector. Sibi provides a set of 
 | ------------   | ----------- |
 | /api/employees | Actions about employees |
 
-## Getting started
+The API documentation can be found on: https://app.sibi.dev/api
 
+## Getting started
 
 ### Connection settings
 
@@ -53,6 +55,23 @@ A new functionality is the possibility to update the account in the target syste
 You can change this behavior in the `create.ps1` by setting the boolean `$updatePerson` to the value of `$true`.
 
 > Be aware that this might have unexpected implications.
+
+### Remarks
+
+- The `Active` field is currently not being used in the API.
+
+- When a new user is created, the fields: `department_code department_name job_position_code job_position_name` are mandatory. 
+Typically, this data comes from an external system and will be used within Sibi to connector these fields to groups. 
+
+For the connector, we provide the values known to us. 
+
+- Different `[Account]` and `[UpdateAccount]` object.
+
+When a new user is created, the JSON payload is a 'flat' object containing the `department_code department_name job_position_code job_position_name` fields.
+The response however is that `department` and `job_position` are both hashtables. This means that, in order to update a user, we have to use a slightly different object that incorporates these hashtables.
+
+- The fields `department.location`, `department.id`, `job_position.function_group` and `job_position.id` can be ignored and set to a `null` value. 
+These fields are only used when an external system is integrated with Sibi. 
 
 ## Getting help
 
