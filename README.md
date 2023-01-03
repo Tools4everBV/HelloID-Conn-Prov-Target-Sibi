@@ -15,13 +15,16 @@
 
 ## Table of contents
 
-- [Introduction](#Introduction)
-- [Getting started](#Getting-started)
-  + [Connection settings](#Connection-settings)
-  + [Prerequisites](#Prerequisites)
-  + [Remarks)(#Remarks)
-- [Getting help](#Getting-help)
-- [HelloID Docs](#HelloID-docs)
+- [HelloID-Conn-Prov-Target-Sibi](#helloid-conn-prov-target-sibi)
+  - [Table of contents](#table-of-contents)
+  - [Introduction](#introduction)
+  - [Getting started](#getting-started)
+    - [Connection settings](#connection-settings)
+    - [Prerequisites](#prerequisites)
+      - [Creation / correlation process](#creation--correlation-process)
+    - [Remarks](#remarks)
+  - [Getting help](#getting-help)
+  - [HelloID docs](#helloid-docs)
 
 ## Introduction
 
@@ -33,6 +36,16 @@ _HelloID-Conn-Prov-Target-Sibi_ is a _target_ connector. Sibi provides a set of 
 
 The API documentation can be found on: https://app.sibi.dev/api
 
+The HelloID connector consists of the template scripts shown in the following table.
+
+| Action                          | Action(s) Performed                           | Comment   | 
+| ------------------------------- | --------------------------------------------- | --------- |
+| create.ps1                      | Correlate or create Sibi user                |           |
+| update.ps1                      | Update Sibi user                             |           |
+| enable.ps1                      | Enable Sibi user                             | There is no enable option, we can only set the startdate to the current date (or earlier)           |
+| disable.ps1                     | Disable Sibi user                            | There is no disable option, we can only set the enddate to the current date (or earlier)          |
+| delete.ps1                      | Delete Sibi user                             | There is no delete option, we can only set the enddate to the past |
+
 ## Getting started
 
 ### Connection settings
@@ -43,6 +56,7 @@ The following settings are required to connect to the API.
 | ------------ | ----------- | ----------- |
 | Token     | The token needed to authenticate to the API. This must be extracted from the application | Yes |
 | BaseUrl      | The Base URL to the API like: __https://{customer}.sibi.nl/api__ | Yes |
+| Update User when correlating and mapped data differs from data in Sibi  | When toggled, the mapped properties will be updated in the create action (not just correlate). | No         |
 
 ### Prerequisites
 
@@ -52,13 +66,14 @@ Before using this connector, make sure you have the appropriate API key to conne
 
 A new functionality is the possibility to update the account in the target system during the correlation process. By default, this behavior is disabled. Meaning, the account will only be created or correlated.
 
-You can change this behavior in the `create.ps1` by setting the boolean `$updatePerson` to the value of `$true`.
+You can change this behavior in the `configuration` by setting the enabling `Update User when correlating and mapped data differs from data in Sibi` option.
 
 > Be aware that this might have unexpected implications.
 
 ### Remarks
 
 - The `Active` field is currently not being used in the API.
+  > We enable or disable users by setting the `employment_start` or `employment_end` field
 
 - When a new user is created, the fields: `department_code department_name job_position_code job_position_name` are mandatory. 
 Typically, this data comes from an external system and will be used within Sibi to connector these fields to groups. 

@@ -1,5 +1,15 @@
 [
     {
+        "key": "BaseUrl",
+        "type": "input",
+        "defaultValue": "",
+        "templateOptions": {
+            "label": "BaseUrl",
+            "description": "The URL to the API.",
+            "required": true
+        }
+    },
+    {
         "key": "Token",
         "type": "input",
         "defaultValue": "",
@@ -11,13 +21,13 @@
         }
     },
     {
-        "key": "BaseUrl",
-        "type": "input",
-        "defaultValue": "",
+        "key": "updateUserOnCorrelate",
+        "type": "checkbox",
+        "defaultValue": false,
         "templateOptions": {
-            "label": "BaseUrl",
-            "description": "The URL to the API.",
-            "required": true
+            "label": "Update User when correlating and mapped data differs from data in Sibi",
+            "required": false,
+            "description": "This will update Sibi users in the create action (not just correlate)."
         }
     },
     {
