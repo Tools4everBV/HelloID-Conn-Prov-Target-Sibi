@@ -71,6 +71,9 @@ You can change this behavior in the `configuration` by setting the enabling `Upd
 > Be aware that this might have unexpected implications.
 
 ### Remarks
+Sibi API 
+- Since the Sibi API [Rate Limiting](https://app.sibi.dev/api#:~:text=valid%20Authorization%20header.-,Rate%20Limiting,-With%20an%20API) allows a maximum of 200 requests a minute, we delay each action by 301 miliseconds.
+  > This will only work as correct way to limit the API calls per minute if the `concurrent actions are set to 1`
 
 - The `Active` field is currently not being used in the API.
   > We enable or disable users by setting the `employment_start` or `employment_end` field

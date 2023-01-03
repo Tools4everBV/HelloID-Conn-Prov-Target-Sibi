@@ -23,7 +23,7 @@ switch ($($c.isDebug)) {
 $InformationPreference = "Continue"
 $WarningPreference = "Continue"
 
-# Wait for 0,301 seconds - Sibi API allows a maximum of 100 requests a minute (https://app.sibi.nl/api).
+# Wait for 0,301 seconds - Sibi API allows a maximum of 200 requests a minute (https://app.sibi.nl/api).
 Start-Sleep -Milliseconds 301
 
 # Used to connect to Azure AD Graph API
