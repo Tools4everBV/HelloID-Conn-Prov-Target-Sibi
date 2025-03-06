@@ -12,15 +12,15 @@
             "Update"
           ],
           "MappingMode": "Field",
-          "Value": "\"Person.Name.GivenName\"",
+          "Value": "\"Person.Name.NickName\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
         }
       ]
     },
     {
-      "Name": "last_name",
-      "Description": "",
+      "Name": "employee_number",
+      "Description": "[Required]",
       "Type": "Text",
       "MappingActions": [
         {
@@ -29,9 +29,9 @@
             "Update"
           ],
           "MappingMode": "Field",
-          "Value": "\"Person.Name.FamilyName\"",
+          "Value": "\"Person.ExternalId\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
         }
       ]
     },
@@ -45,16 +45,138 @@
             "Create",
             "Update"
           ],
-          "MappingMode": "Field",
-          "Value": "\"Person.Contact.Business.Email\"",
+          "MappingMode": "Complex",
+          "Value": "\"function getEmail(){\\r\\n    let email = Person.Accounts._8228003b5f304f0a9383324e921fc263.mail;\\r\\n\\r\\n    return email;\\r\\n}\\r\\n\\r\\ngetEmail();\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "departments",
+      "Description": "[Optional] List of departments.\nThis field should always be set to a 'None' mapping. It is only supported for the 'Create' and 'Update' actions.\nThe field is populated via scripts because it requires an array of objects, which is not supported by the current HelloID field mapping.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "job_positions",
+      "Description": "[Optional] List of departments.\nThis field should always be set to a 'None' mapping. It is only supported for the 'Create' and 'Update' actions.\nThe field is populated via scripts because it requires an array of objects, which is not supported by the current HelloID field mapping.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "employment_end",
+      "Description": "[Required] The employee’s end date of employment.\nThis field disables the Sibi account on the end date and should always be set to the latest end date of all valid contracts. If no valid contracts exist, the latest end date of all contracts is used. If at least one contract has an indefinite end date, this field remains empty.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update",
+            "Enable",
+            "Disable"
+          ],
+          "MappingMode": "Complex",
+          "Value": "\"function getLatestEndDate() {\\r\\n    // Assuming Person.contracts is an array of contract objects\\r\\n    const contracts = Array.from(Person.contracts);\\r\\n\\r\\n    // Filter contracts where InConditions is true\\r\\n    let filteredContracts = contracts.filter(contract => contract.Context && contract.Context.InConditions);\\r\\n\\r\\n    // If no contracts meet the InConditions criteria, use all contracts\\r\\n    if (filteredContracts.length === 0) {\\r\\n        filteredContracts = contracts;\\r\\n    }\\r\\n\\r\\n    // Check if any contract has an indefinite end date\\r\\n    const hasIndefiniteContract = filteredContracts.some(contract => !contract.EndDate);\\r\\n\\r\\n    if (hasIndefiniteContract) {\\r\\n        return '';\\r\\n    }\\r\\n\\r\\n    // Find the latest end date\\r\\n    const latestEndDate = filteredContracts.reduce((latest, contract) => {\\r\\n        return new Date(contract.EndDate) > new Date(latest.EndDate) ? contract : latest;\\r\\n    }, { EndDate: '1970-01-01' }).EndDate; // Initialize with a very old date\\r\\n\\r\\n    return latestEndDate !== '1970-01-01' ? latestEndDate : '';\\r\\n}\\r\\n\\r\\nfunction convertDate(date) {\\r\\n    // Get day, month, and year components\\r\\n    const day = date.getDate().toString().padStart(2, '0');\\r\\n    const month = (date.getMonth() + 1).toString().padStart(2, '0');\\r\\n    const year = date.getFullYear();\\r\\n\\r\\n    // Format the date as \\\"yyyy-MM-dd\\\"\\r\\n    return `${year}-${month}-${day}`;\\r\\n}\\r\\n\\r\\n// Example usage:\\r\\nfunction getEndDate() {\\r\\n    const latestEndDate = getLatestEndDate();\\r\\n    const returnDate = latestEndDate ? convertDate(new Date(latestEndDate)) : '';\\r\\n\\r\\n    return returnDate;\\r\\n}\\r\\n\\r\\ngetEndDate();\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "employment_start",
+      "Description": "[Required] The employee’s start date of employment.\nThis field enables the Sibi account on the employee’s start date and should always be set to their first start date, as it determines their tenure and work anniversary.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update",
+            "Enable",
+            "Disable"
+          ],
+          "MappingMode": "Field",
+          "Value": "\"Person.PrimaryContract.Custom.OriginalHireDate\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "phone",
+      "Description": "",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update"
+          ],
+          "MappingMode": "Field",
+          "Value": "\"Person.Contact.Business.Phone.Fixed\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "last_name",
+      "Description": "",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create",
+            "Update"
+          ],
+          "MappingMode": "Complex",
+          "Value": "\"// generateSurnameOption1.js [https://github.com/Tools4everBV/HelloID-Lib-Prov-HelperFunctions/blob/master/Javascript/Target/Surname_Lastname/Scripts/generateSurnameOption1.js]\\r\\n//\\r\\n// Mapping logic to generate the Surname according to the following convention.\\r\\n// B\\tvan den Boele\\r\\n// BP\\tvan den Boele – de Vries\\r\\n// P\\tde Vries\\r\\n// PB   de Vries – van den Boele\\r\\nfunction generateSurname() {\\r\\n    let middleName = Person.Name.FamilyNamePrefix;\\r\\n    let lastName = Person.Name.FamilyName;\\r\\n    let middleNamePartner = Person.Name.FamilyNamePartnerPrefix;\\r\\n    let lastNamePartner = Person.Name.FamilyNamePartner;\\r\\n    let convention = Person.Name.Convention;\\r\\n\\r\\n    let surName = '';\\r\\n    switch (convention) {\\r\\n        case \\\"BP\\\":\\r\\n            if (typeof middleName !== 'undefined' && middleName) { surName = surName + middleName + ' ' }\\r\\n            surName = surName + lastName;\\r\\n\\r\\n            surName = surName + ' - ';\\r\\n            if (typeof middleNamePartner !== 'undefined' && middleNamePartner) { surName = surName + middleNamePartner + ' ' }\\r\\n            surName = surName + lastNamePartner;\\r\\n            break;\\r\\n        case \\\"PB\\\":\\r\\n            if (typeof middleNamePartner !== 'undefined' && middleNamePartner) { surName = surName + middleNamePartner + ' ' }\\r\\n            surName = surName + lastNamePartner;\\r\\n\\r\\n            surName = surName + ' - ';\\r\\n            if (typeof middleName !== 'undefined' && middleName) { surName = surName + middleName + ' ' }\\r\\n            surName = surName + lastName;\\r\\n            break;\\r\\n        case \\\"P\\\":\\r\\n            if (typeof middleNamePartner !== 'undefined' && middleNamePartner) { surName = surName + middleNamePartner + ' ' }\\r\\n            surName = surName + lastNamePartner;\\r\\n            break;\\r\\n        case \\\"B\\\":\\r\\n        default:\\r\\n            if (typeof middleName !== 'undefined' && middleName) { surName = surName + middleName + ' ' }\\r\\n            surName = surName + lastName;\\r\\n            break;\\r\\n    }\\r\\n    // Trim spaces at start and end\\r\\n    surName = surName.trim();\\r\\n\\r\\n    return surName;\\r\\n}\\r\\n\\r\\ngenerateSurname();\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
+        }
+      ]
+    },
+    {
+      "Name": "id",
+      "Description": "[Required] The unique identifier for the user.\nThis field should always be set to a 'None' mapping and is used as the AccountReference.",
+      "Type": "Text",
+      "MappingActions": [
+        {
+          "MapForActions": [
+            "Create"
+          ],
+          "MappingMode": "None",
+          "Value": "\"\"",
+          "UsedInNotifications": false,
+          "StoreInAccountData": true
         }
       ]
     },
     {
       "Name": "birthdate",
-      "Description": "",
+      "Description": "[Optional] The employee’s birthdate.\nThis field is formatted as \"yyyy-MM-dd\". If the birthdate is available, it is converted into the correct format.",
       "Type": "Text",
       "MappingActions": [
         {
@@ -63,15 +185,15 @@
             "Update"
           ],
           "MappingMode": "Complex",
-          "Value": "\"function getValue() {\\n    // return Person.Details.BirthDate;\\n    const input = Person.Details.BirthDate;\\n    const date = new Date(input);\\n\\n    // Format to yyyy-MM-dd\\n    const year = date.getFullYear();\\n    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-indexed\\n    const day = String(date.getDate()).padStart(2, '0');\\n\\n    const formattedDate = `${year}-${month}-${day}`;\\n    return formattedDate;\\n}\\n\\ngetValue();\"",
+          "Value": "\"function convertDate(date) {\\n    // Get day, month, and year components\\n    const day = date.getDate().toString().padStart(2, '0');\\n    const month = (date.getMonth() + 1).toString().padStart(2, '0');\\n    const year = date.getFullYear();\\n\\n    // Format the date as \\\"yyyy-MM-dd\\\"\\n    return year + '-' + month + '-' + day;\\n}\\n\\n// Example usage:\\nfunction getBirthDate(){\\n    let inputDate = Person.Details.BirthDate;\\n    let returnDate = inputDate ? convertDate(new Date(inputDate)) : null;\\n\\n    return returnDate;\\n}\\n\\ngetBirthDate();\"",
           "UsedInNotifications": false,
           "StoreInAccountData": false
         }
       ]
     },
     {
-      "Name": "department_code",
-      "Description": "",
+      "Name": "phone_mobile_private",
+      "Description": "[Optional] The employee’s private mobile phone number.\nIf provided, the number is reformatted by replacing the leading '06' with '+316' and removing any spaces. In Sibi, '06' is automatically converted to '+316'. To prevent unnecessary updates, this conversion should already be handled in the field mapping.",
       "Type": "Text",
       "MappingActions": [
         {
@@ -80,15 +202,15 @@
             "Update"
           ],
           "MappingMode": "Complex",
-          "Value": "\"function getValue() {\\r\\n    return Person.PrimaryContract.Department.DisplayName + \\\"1\\\";\\r\\n}\\r\\n\\r\\ngetValue();\"",
+          "Value": "\"function getMobilePrivatePhone() {\\r\\n    let mobilePrivatePhone = Person.Contact.Personal.Phone.Mobile;\\r\\n\\r\\n    if (mobilePrivatePhone) {\\r\\n        // Replace the starting '06' with '+316'\\r\\n        mobilePrivatePhone = mobilePrivatePhone.replace(/^06/, \\\"+316\\\");\\r\\n\\r\\n        // Remove all spaces from the phone number\\r\\n        mobilePrivatePhone = mobilePrivatePhone.replace(/\\\\s/g, \\\"\\\");\\r\\n    }\\r\\n\\r\\n    return mobilePrivatePhone;\\r\\n}\\r\\n\\r\\ngetMobilePrivatePhone();\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
         }
       ]
     },
     {
-      "Name": "job_position_code",
-      "Description": "",
+      "Name": "phone_mobile",
+      "Description": "[Optional] The employee’s business mobile phone number.\nIf provided, the number is reformatted by replacing the leading '06' with '+316' and removing any spaces. In Sibi, '06' is automatically converted to '+316'. To prevent unnecessary updates, this conversion should already be handled in the field mapping.",
       "Type": "Text",
       "MappingActions": [
         {
@@ -97,60 +219,9 @@
             "Update"
           ],
           "MappingMode": "Complex",
-          "Value": "\"function getValue() {\\n    return Person.PrimaryContract.Title.Name + \\\"1\\\";\\n}\\n\\ngetValue();\"",
+          "Value": "\"function getMobilePhone() {\\r\\n    let mobilePhone = Person.Contact.Business.Phone.Mobile;\\r\\n\\r\\n    if (mobilePhone) {\\r\\n        // Replace the starting '06' with '+316'\\r\\n        mobilePhone = mobilePhone.replace(/^06/, \\\"+316\\\");\\r\\n\\r\\n        // Remove all spaces from the phone number\\r\\n        mobilePhone = mobilePhone.replace(/\\\\s/g, \\\"\\\");\\r\\n    }\\r\\n\\r\\n    return mobilePhone;\\r\\n}\\r\\n\\r\\ngetMobilePhone();\"",
           "UsedInNotifications": false,
-          "StoreInAccountData": false
-        }
-      ]
-    },
-    {
-      "Name": "job_position_name",
-      "Description": "",
-      "Type": "Text",
-      "MappingActions": [
-        {
-          "MapForActions": [
-            "Create",
-            "Update"
-          ],
-          "MappingMode": "Field",
-          "Value": "\"Person.PrimaryContract.Title.Name\"",
-          "UsedInNotifications": false,
-          "StoreInAccountData": false
-        }
-      ]
-    },
-    {
-      "Name": "department_name",
-      "Description": "",
-      "Type": "Text",
-      "MappingActions": [
-        {
-          "MapForActions": [
-            "Create",
-            "Update"
-          ],
-          "MappingMode": "Field",
-          "Value": "\"Person.PrimaryContract.Department.DisplayName\"",
-          "UsedInNotifications": false,
-          "StoreInAccountData": false
-        }
-      ]
-    },
-    {
-      "Name": "employee_number",
-      "Description": "",
-      "Type": "Text",
-      "MappingActions": [
-        {
-          "MapForActions": [
-            "Create",
-            "Update"
-          ],
-          "MappingMode": "Field",
-          "Value": "\"Person.ExternalId\"",
-          "UsedInNotifications": false,
-          "StoreInAccountData": false
+          "StoreInAccountData": true
         }
       ]
     }
