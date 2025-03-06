@@ -23,6 +23,12 @@ All notable changes to this project will be documented in this file. The format 
 - **Error Logging Enhancements**:
   - Introduced `$actionMessage` for logging script execution steps, improving troubleshooting and error tracking during the script execution.
 
+- **Dry-Run Mode**:
+  - Enhanced dry-run functionality to treat all contracts as "in conditions," with clear warning messages during dry-run scenarios.
+
+- **Code Refinements**:
+  - Fixed inconsistencies in log messages across lifecycle actions, ensuring more clarity and uniformity.
+
 ### Changed
 
 - **Field Mapping Updates**:
@@ -44,14 +50,6 @@ All notable changes to this project will be documented in this file. The format 
 
 - **Code Cleanup**:
   - Removed debug toggle from configuration files.
-
-### Fixed
-
-- **Dry-Run Mode**:
-  - Enhanced dry-run functionality to treat all contracts as "in conditions," with clear warning messages during dry-run scenarios.
-
-- **Code Refinements**:
-  - Fixed inconsistencies in log messages across lifecycle actions, ensuring more clarity and uniformity.
 
 ## [1.0.0] - 10-12-2024
 
