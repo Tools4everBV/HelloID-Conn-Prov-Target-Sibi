@@ -96,9 +96,11 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 The `departments` and `job_positions` fields in the Sibi API are represented as arrays of objects, which HelloID’s field mapping doesn’t currently support. Therefore, these fields are populated through PowerShell scripts.
 
-- The script determines which contracts are “in scope” by evaluating active contracts and the start date of the primary contract. It processes contracts from both past and future, depending on the current date.
-- It then generates department and job position objects from these contracts, ensuring uniqueness, and assigns them to the corresponding user account.
-- For each contract, the relevant department and job position details are extracted and stored in arrays, which are then added to the `departments` and `job_positions` fields of the user.
+- The script determines which contracts are "in scope".
+- By default, only active contracts are used. If there are no active contracts, and the employee has either already left or is yet to join, the following rules apply:
+  - **For employees who are yet to join**: Contracts are used that fall within the Business Rule, where the end date has not been reached yet.
+  - **For employees who have already left**: Contracts are used that fall within the Business Rule, with a start date in the past.
+- **If the list is empty, nothing will be updated.**
 - In dry-run mode, all contracts are considered “in conditions”, allowing for previewing of the data without actual changes.
 
 ### Handling Null Values in Field Mapping
