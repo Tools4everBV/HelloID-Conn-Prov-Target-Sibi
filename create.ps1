@@ -23,7 +23,8 @@ function Resolve-SibiError {
         }
         if (-not [string]::IsNullOrEmpty($ErrorObject.ErrorDetails.Message)) {
             $httpErrorObj.ErrorDetails = $ErrorObject.ErrorDetails.Message
-        } elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
+        }
+        elseif ($ErrorObject.Exception.GetType().FullName -eq 'System.Net.WebException') {
             if ($null -ne $ErrorObject.Exception.Response) {
                 $streamReaderResponse = [System.IO.StreamReader]::new($ErrorObject.Exception.Response.GetResponseStream()).ReadToEnd()
                 if (-not [string]::IsNullOrEmpty($streamReaderResponse)) {
@@ -34,7 +35,8 @@ function Resolve-SibiError {
         try {
             $errorDetailsObject = ($httpErrorObj.ErrorDetails | ConvertFrom-Json)
             $httpErrorObj.FriendlyMessage = $errorDetailsObject.message
-        } catch {
+        }
+        catch {
             $httpErrorObj.FriendlyMessage = $httpErrorObj.ErrorDetails
         }
         Write-Output $httpErrorObj
@@ -43,15 +45,98 @@ function Resolve-SibiError {
 #endregion
 
 try {
-    # Initial Assignments
-    $outputContext.AccountReference = 'Currently not available'
+    # Define account object
+    $account = [PSCustomObject]$actionContext.Data.PsObject.Copy()
 
+    # Remove properties of account object with null-values
+    $account.PsObject.Properties | ForEach-Object {
+        # Remove properties with null-values
+        if ($_.Value -eq $null) {
+            $account.PsObject.Properties.Remove("$($_.Name)")
+        }
+    }
+
+    # Convert properties of account object with empty string to null-value
+    $account.PsObject.Properties | ForEach-Object {
+        # Convert properties with empty string to null-value
+        if ($_.Value -eq "") {
+            $_.Value = $null
+        }
+    }
+    
+    # Calculate contracts in scope
+    $actionMessage = "Calculating contracts in scope"
+
+    $contractsInScope = [System.Collections.ArrayList]@()
+    $currentDate = Get-Date
+
+    # Use active contracts
+    $contractsInScope = $personContext.Person.Contracts | Where-Object {
+        ($_.StartDate -as [datetime]) -le $currentDate -and (($_.EndDate -as [datetime]) -ge $currentDate -or -not $_.EndDate)
+    }
+
+    # No active contracts
+    if (-not $contractsInScope) {
+        if ($personContext.Person.PrimaryContract.StartDate -as [datetime] -gt $currentDate) {
+            # Primary contract is in the future, use contracts that are in conditions and not expired
+            Write-Information "Primary contract is in the future. Checking contracts in conditions and not expired."
+            $contractsInScope = $personContext.Person.Contracts | Where-Object {
+                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and ($_.EndDate -as [datetime] -ge $currentDate -or -not $_.EndDate)
+            }
+        }
+        elseif ($personContext.Person.PrimaryContract.StartDate -as [datetime] -lt $currentDate) {
+            # Primary contract is in the past, use contracts that are in conditions and not started yet
+            Write-Information "Primary contract is in the past. Checking contracts in conditions and not started yet."
+            $contractsInScope = $personContext.Person.Contracts | Where-Object {
+                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and $_.StartDate -as [datetime] -le $currentDate
+            }
+        }
+    }
+
+    if (-Not($actionContext.DryRun -eq $true)) {
+        Write-Information "Contracts in scope: $($contractsInScope.ExternalId -Join ',')"
+    }
+    else {
+        Write-Warning "DryRun: All contracts are treated as being in conditions. Contracts in scope: $($contractsInScope.ExternalId -Join ',')"
+    }
+
+    # Create departments and job_positions object containing department and job title details from contracts in scope
+    # This is required as the HelloID fieldmapping currently does not support an array with objects
+    $actionMessage = "calculating and creating departments and job_positions from contracts in scope"
+
+    $departmentsObject = [System.Collections.ArrayList]@()
+    $jobPositionsObject = [System.Collections.ArrayList]@()
+    foreach ($contract in $contractsInScope) {
+        $departmentObject = @{
+            'code' = $contract.Department.ExternalId
+            'name' = $contract.Department.DisplayName
+        }
+
+        [void]$departmentsObject.Add($departmentObject)
+
+        $jobPositionObject = @{
+            'code' = $contract.Title.ExternalId
+            'name' = $contract.Title.Name
+        }
+        
+        [void]$jobPositionsObject.Add($jobPositionObject)
+    }
+    $departmentsObject = $departmentsObject | Select-Object -Unique -Property code, name
+    $account | Add-Member -MemberType NoteProperty -Name departments -Value @($departmentsObject) -Force
+
+    $jobPositionsObject = $jobPositionsObject | Select-Object -Unique -Property code, name
+    $account | Add-Member -MemberType NoteProperty -Name job_positions -Value @($jobPositionsObject) -Force
+    
+    $actionMessage = "creating headers"
+    
     $headers = [System.Collections.Generic.Dictionary[string, string]]::new()
     $headers.Add('Authorization', "Bearer $($actionContext.Configuration.Token)")
     $headers.Add('Accept', 'application/json')
 
     # Validate correlation configuration
     if ($actionContext.CorrelationConfiguration.Enabled) {
+        $actionMessage = "verifying correlation configuration and properties"
+
         $correlationField = $actionContext.CorrelationConfiguration.AccountField
         $correlationValue = $actionContext.CorrelationConfiguration.PersonFieldValue
 
@@ -62,6 +147,8 @@ try {
             throw 'Correlation is enabled but [accountFieldValue] is empty. Please make sure it is correctly mapped'
         }
 
+        $actionMessage = "querying account where [$($correlationField)] = [$($correlationValue)]"
+
         try {
             $splatParams = @{
                 Uri         = "$($actionContext.Configuration.BaseUrl)/api/employees/get/by-en/$($correlationValue)"
@@ -69,101 +156,140 @@ try {
                 Headers     = $headers
                 ContentType = 'application/json'
             }
-            $correlatedAccount = Invoke-RestMethod @splatParams
-        } catch {
+            $correlatedAccount = (Invoke-RestMethod @splatParams).employee | Select-Object (@("id") + $account.PsObject.Properties.Name)
+        }
+        catch {
             $ex = $PSItem
-            $errorObj = Resolve-SibiError -ErrorObject $ex
-            Write-Information $errorObj.ErrorDetails
-            if ($ex.Exception.Response.StatusCode -eq 'NotFound'){
+            if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
+                $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
+                $errorObj = Resolve-SibiError -ErrorObject $ex
+                $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+            }
+            else {
+                $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+            }
+    
+            if ($auditMessage -like '*No query results*') {
                 $correlatedAccount = $null
-            } else {
-                throw
+            }
+            else {
+                throw $ex
             }
         }
     }
 
-    if ($null -ne $correlatedAccount) {
+    $actionMessage = 'calculating action'
+    
+    if (($correlatedAccount | Measure-Object).count -eq 1) {
         $action = 'CorrelateAccount'
-    } else {
+    }
+    elseif (($correlatedAccount | Measure-Object).count -eq 0) {
         $action = 'CreateAccount'
+    }
+    elseif (($correlatedAccount | Measure-Object).count -gt 1) {
+        $action = 'MultipleFound'
     }
 
     # Process
     switch ($action) {
         'CreateAccount' {
-            $splatCreateParams = @{
+            $actionMessage = "creating account with employee_number [$($account.employee_number)]"
+
+            $createAccountSplatParams = @{
                 Uri         = "$($actionContext.Configuration.BaseUrl)/api/employees/create"
-                Method      = 'POST'
+                Method      = "POST"
+                Body        = ($account | ConvertTo-Json -Depth 10)
                 Headers     = $headers
-                Body        = $actionContext.Data | ConvertTo-Json
-                ContentType = 'application/json'
+                ContentType = 'application/json; charset=utf-8'
+                Verbose     = $false
+                ErrorAction = "Stop"
             }
 
-            # Make sure to test with special characters and if needed; add utf8 encoding.
-            if (-not($actionContext.DryRun -eq $true)) {
-                Write-Information 'Creating and correlating Sibi account'
-                $null = Invoke-RestMethod @splatCreateParams
-
+            if (-Not($actionContext.DryRun -eq $true)) {
                 # The API only returns 'ok{true}' when an employee is created, Another get call is required because of that.
-                try {
-                    $splatGetParams = @{
-                        Uri         = "$($actionContext.Configuration.BaseUrl)/api/employees/get/by-en/$($correlationValue)"
-                        Method      = 'GET'
-                        Headers     = $headers
-                        ContentType = 'application/json'
-                    }
-                    $createdAccount = (Invoke-RestMethod @splatGetParams).employee
-                } catch {
-                    $ex = $PSItem
-                    $errorObj = Resolve-SibiError -ErrorObject $ex
-                    if ($ex.Exception.Response.StatusCode -eq 'NotFound') {
-                        $createdAccount = $null
-                        Write-Information "An account with id [$($correlationValue)] has been created but cannot be found. Error: [$($errorObj.ErrorDetails)]"
-                    } else {
-                        throw
-                    }
-                }
+                $createAccountResponse = Invoke-RestMethod @createAccountSplatParams
 
-                $outputContext.Data = $createdAccount
-                $outputContext.AccountReference = $createdAccount.Id
-            } else {
-                Write-Information '[DryRun] Create and correlate Sibi account, will be executed during enforcement'
+                $splatParams = @{
+                    Uri         = "$($actionContext.Configuration.BaseUrl)/api/employees/get/by-en/$($correlationValue)"
+                    Method      = 'GET'
+                    Headers     = $headers
+                    ContentType = 'application/json'
+                }
+                $createdAccount = (Invoke-RestMethod @splatParams).employee
+
+                $outputContext.Data = $createdAccount | Select-Object (@("id") + $account.PsObject.Properties.Name)
+                $outputContext.AccountReference = "$($createdAccount.id)"
+
+                $outputContext.AuditLogs.Add([PSCustomObject]@{
+                        # Action  = "" # Optional
+                        Message = "Created account with employee_number [$($account.employee_number)] with AccountReference: $($outputContext.AccountReference | ConvertTo-Json)."
+                        IsError = $false
+                    })
             }
-            $auditLogMessage = "Create account was successful. AccountReference is: [$($outputContext.AccountReference)]"
+            else {
+                Write-Warning "DryRun: Would create account with employee_number [$($account.employee_number)]."
+            }
+
             break
         }
 
         'CorrelateAccount' {
-            Write-Information 'Correlating Sibi account'
+            $actionMessage = "correlating to account with AccountReference: $($correlatedAccount.id) on [$($correlationField)] = [$($correlationValue)]"
 
-            $outputContext.Data = $correlatedAccount
-            $outputContext.AccountReference = $correlatedAccount.Id
+            $outputContext.AccountReference = "$($correlatedAccount.id)"
+            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+
+            $outputContext.AuditLogs.Add([PSCustomObject]@{
+                    Action  = "CorrelateAccount" # Optionally specify a different action for this audit log
+                    Message = "Correlated to account with AccountReference: $($outputContext.AccountReference | ConvertTo-Json) on [$($correlationField)] = [$($correlationValue)]."
+                    IsError = $false
+                })
+
             $outputContext.AccountCorrelated = $true
-            $auditLogMessage = "Correlated account: [$($outputContext.AccountReference)] on field: [$($correlationField)] with value: [$($correlationValue)]"
+        
+            break
+        }
+
+        'MultipleFound' {
+            #region Multiple accounts found
+            $actionMessage = "correlating to account with AccountReference: $($outputContext.AccountReference | ConvertTo-Json) on [$($correlationField)] = [$($correlationValue)]"
+
+            # Throw terminal error
+            throw "Multiple accounts found where [$($correlationField)] = [$($correlationValue)]. Please correct this so the persons are unique."
+        
             break
         }
     }
-
-    $outputContext.success = $true
-    $outputContext.AuditLogs.Add([PSCustomObject]@{
-            Action  = $action
-            Message = $auditLogMessage
-            IsError = $false
-        })
-} catch {
-    $outputContext.success = $false
+}
+catch {
     $ex = $PSItem
     if ($($ex.Exception.GetType().FullName -eq 'Microsoft.PowerShell.Commands.HttpResponseException') -or
         $($ex.Exception.GetType().FullName -eq 'System.Net.WebException')) {
         $errorObj = Resolve-SibiError -ErrorObject $ex
-        $auditMessage = "Could not create or correlate Sibi account. Error: $($errorObj.FriendlyMessage)"
-        Write-Warning "Error at Line '$($errorObj.ScriptLineNumber)': $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
-    } else {
-        $auditMessage = "Could not create or correlate Sibi account. Error: $($ex.Exception.Message)"
-        Write-Warning "Error at Line '$($ex.InvocationInfo.ScriptLineNumber)': $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+        $auditMessage = "Error $($actionMessage). Error: $($errorObj.FriendlyMessage)"
+        $warningMessage = "Error at Line [$($errorObj.ScriptLineNumber)]: $($errorObj.Line). Error: $($errorObj.ErrorDetails)"
     }
+    else {
+        $auditMessage = "Error $($actionMessage). Error: $($ex.Exception.Message)"
+        $warningMessage = "Error at Line [$($ex.InvocationInfo.ScriptLineNumber)]: $($ex.InvocationInfo.Line). Error: $($ex.Exception.Message)"
+    }
+
+    Write-Warning $warningMessage
+
     $outputContext.AuditLogs.Add([PSCustomObject]@{
+            # Action  = "" # Optional
             Message = $auditMessage
             IsError = $true
         })
+}
+finally {
+    # Check if auditLogs contains errors, if no errors are found, set success to true
+    if (-NOT($outputContext.AuditLogs.IsError -contains $true)) {
+        $outputContext.Success = $true
+    }
+
+    # Check if accountreference is set, if not set, set this with default value as this must contain a value
+    if ([String]::IsNullOrEmpty($outputContext.AccountReference) -and $actionContext.DryRun -eq $true) {
+        $outputContext.AccountReference = "DryRun: Currently not available"
+    }
 }

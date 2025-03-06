@@ -2,10 +2,11 @@
     {
         "key": "BaseUrl",
         "type": "input",
-        "defaultValue": "",
+        "defaultValue": "https://<customer>.sibi.nl",
         "templateOptions": {
             "label": "BaseUrl",
-            "description": "The URL to the API.",
+            "placeholder": "https://<customer>.sibi.nl",
+            "description": "The Base URL to the Sibi environment. Make sure to not include the path in the URL such as /api.",
             "required": true
         }
     },
@@ -16,28 +17,9 @@
         "templateOptions": {
             "type": "password",
             "label": "Token",
-            "description": "The token needed to authenticate to the API.",
+            "placeholder": "sibi_01_AbCDEfgfsmrw3aDTfp5HfSH19zaap7osuDuEoh9TnimRzuMd6VwXyZ",
+            "description": "The token needed to authenticate to the Sibi API.",
             "required": true
-        }
-    },
-    {
-        "key": "updateUserOnCorrelate",
-        "type": "checkbox",
-        "defaultValue": false,
-        "templateOptions": {
-            "label": "Update User when correlating and mapped data differs from data in Sibi",
-            "required": false,
-            "description": "This will update Sibi users in the create action (not just correlate)."
-        }
-    },
-    {
-        "key": "IsDebug",
-        "type": "checkbox",
-        "defaultValue": true,
-        "templateOptions": {
-            "label": "Toggle debug logging",
-            "description": "When toggled, debug logging will be displayed",
-            "required": false
         }
     }
 ]
