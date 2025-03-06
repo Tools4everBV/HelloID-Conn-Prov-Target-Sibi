@@ -1,6 +1,6 @@
 # HelloID-Conn-Prov-Target-Sibi
 
-> [!IMPORTANT]
+> [!IMPORTANT]  
 > This repository contains the connector and configuration code only. The implementer is responsible to acquire the connection details such as username, password, certificate, etc. You might even need to sign a contract or agreement with the supplier before implementing this connector. Please contact the client's application manager to coordinate the connector requirements.
 
 <p align="center">
@@ -9,7 +9,7 @@
 
 ## Table of contents
 
-- [HelloID-Conn-Prov-Target-Sibi](#helloid-conn-prov-target-connectorname)
+- [HelloID-Conn-Prov-Target-Sibi](#helloid-conn-prov-target-sibi)
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Getting started](#getting-started)
@@ -19,6 +19,10 @@
     - [Available lifecycle actions](#available-lifecycle-actions)
     - [Field mapping](#field-mapping)
   - [Remarks](#remarks)
+    - [Sibi API](#sibi-api)
+    - [User Management Limitations](#user-management-limitations)
+    - [Departments and Job Positions](#departments-and-job-positions)
+    - [Handling Null Values in Field Mapping](#handling-null-values-in-field-mapping)
   - [Development resources](#development-resources)
     - [API endpoints](#api-endpoints)
     - [API documentation](#api-documentation)
@@ -39,36 +43,36 @@ Before using this connector, make sure you have the appropriate API key to conne
 
 The following settings are required to connect to the API.
 
-| Setting  | Description                                    | Mandatory |
-| -------- | ---------------------------------------------- | --------- |
-| Token    | The authentication token to connect to the API | Yes       |
-| BaseUrl  | The URL to the API                             | Yes       |
+| Setting | Description                                    | Mandatory |
+| ------- | ---------------------------------------------- | --------- |
+| Token   | The authentication token to connect to the API | Yes       |
+| BaseUrl | The URL to the API                             | Yes       |
 
 ### Correlation configuration
 
 The correlation configuration is used to specify which properties will be used to match an existing account within _Sibi_ to a person in _HelloID_.
 
-| Setting                   | Value                             |
-| ------------------------- | --------------------------------- |
-| Enable correlation        | `True`                            |
-| Person correlation field  | `PersonContext.Person.ExternalId` |
-| Account correlation field | `employee_number`                 |
+| Setting                   | Value             |
+| ------------------------- | ----------------- |
+| Enable correlation        | `True`            |
+| Person correlation field  | `ExternalId`      |
+| Account correlation field | `employee_number` |
 
-> [!TIP]
+> [!TIP]  
 > _For more information on correlation, please refer to our correlation [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems/correlation.html) pages_.
 
 ### Available lifecycle actions
 
 The following lifecycle actions are available:
 
-| Action                                  | Description                                                                                |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ |
-| create.ps1                              | Creates a new account.                                                                     |
-| disable.ps1                             | Disables an account, preventing access without permanent removal.                          |
-| enable.ps1                              | Enables an account, granting access.                                                       |
-| update.ps1                              | Updates the attributes of an account.                                                      |
-| configuration.json                      | Contains the connection settings and general configuration for the connector.              |
-| fieldMapping.json                       | Defines mappings between person fields and target system person account fields.            |
+| Action             | Description                                                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| create.ps1         | Creates a new account.                                                                                                                                     |
+| disable.ps1        | Updates an existing account, specifically the `employment_start` and `employment_start` fields, as Sibi uses those to activate or disable accounts itself. |
+| enable.ps1         | Updates an existing account, specifically the `employment_start` and `employment_start` fields, as Sibi uses those to activate or disable accounts itself. |
+| update.ps1         | Updates the attributes of an account.                                                                                                                      |
+| configuration.json | Contains the connection settings and general configuration for the connector.                                                                              |
+| fieldMapping.json  | Defines mappings between person fields and target system person account fields.                                                                            |
 
 ### Field mapping
 
@@ -76,29 +80,36 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 ## Remarks
 
-### Sibi API 
-- Since the Sibi API [Rate Limiting](https://app.sibi.nl/api#:~:text=valid%20Authorization%20header.-,Rate%20Limiting,-With%20an%20API) allows a maximum of 200 requests a minute, we delay each action by 301 miliseconds.
-  > This will only work as correct way to limit the API calls per minute if the `concurrent actions are set to 1`
+### Sibi API
 
-- The `Active` field is currently not being used in the API.
-> We enable or disable users by setting the `employment_start` or `employment_end` field
+- The Sibi API enforces [Rate Limiting](https://app.sibi.nl/api#:~:text=valid%20Authorization%20header.-,Rate%20Limiting,-With%20an%20API) with a maximum of 200 requests per minute. To ensure compliance, each action is delayed by 301 milliseconds.
+  > This rate limiting mechanism will only function correctly if `concurrent actions` are set to 1.
 
-### Departments and Job positions
-- When a new user is created, the fields: `department_code department_name job_position_code job_position_name` are mandatory. 
-Typically, this data comes from an external system and will be used within Sibi to connector these fields to groups. 
+- The `Active` field is currently not supported by the API.
+  > Enabling or disabling users cannot be done via the API. Sibi manages this based on the `employment_start` and `employment_end` fields.
 
-- The API has multiple ways to set the departments and job positions properties one way is to user the fields: `department_code department_name job_position_code job_position_name` This can be used when you have one department and one job position. The connector is currently based on this.
+### User Management Limitations
 
-The other way departments and job positions can be implemented is by using the departments and job_positions arrays. This will likely be used when you have multiple departments or job positions for each person. This can also be implemented in the connector but to get this working you should change the fieldmapping, the create and the update scripts.
+- This connector can only manage users created via the API. It cannot manage accounts created manually. For manually created users, Sibi must first take an action (such as activating or updating the user) before they can be managed via the API. Until Sibi performs this action, the connector cannot handle those accounts.
 
-when using the array variant The fields `department.location`, `department.id`, `job_position.function_group` and `job_position.id` can be ignored and set to a `null` value. These fields are only used when an external system is integrated with Sibi. 
+### Departments and Job Positions
 
+The `departments` and `job_positions` fields in the Sibi API are represented as arrays of objects, which HelloID’s field mapping doesn’t currently support. Therefore, these fields are populated through PowerShell scripts.
+
+- The script determines which contracts are “in scope” by evaluating active contracts and the start date of the primary contract. It processes contracts from both past and future, depending on the current date.
+- It then generates department and job position objects from these contracts, ensuring uniqueness, and assigns them to the corresponding user account.
+- For each contract, the relevant department and job position details are extracted and stored in arrays, which are then added to the `departments` and `job_positions` fields of the user.
+- In dry-run mode, all contracts are considered “in conditions”, allowing for previewing of the data without actual changes.
+
+### Handling Null Values in Field Mapping
+
+- The script automatically filters out any field mappings that are set to `$null`. If a value in the HelloID person model is `$null`, it will also be excluded. If you wish to preserve these values, change the field mapping to complex and return an empty string or a space for `$null` values. This ensures that the script handles the data correctly.
 
 ## Development resources
 
 ### API endpoints
 
-The following endpoints are used by the connector
+The following endpoints are used by the connector:
 
 | Endpoint                                     | Description                                  |
 | -------------------------------------------- | -------------------------------------------- |
@@ -109,15 +120,15 @@ The following endpoints are used by the connector
 
 ### API documentation
 
-The API documentation can be found on: [Documentation](https://app.sibi.nl/api) 
+The API documentation can be found on: [Documentation](https://app.sibi.nl/api)
 
 ## Getting help
 
-> [!TIP]
+> [!TIP]  
 > _For more information on how to configure a HelloID PowerShell connector, please refer to our [documentation](https://docs.helloid.com/en/provisioning/target-systems/powershell-v2-target-systems.html) pages_.
 
-> [!TIP]
->  _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/1145-helloid-provisioning-helloid-conn-prov-target-sibi)_.
+> [!TIP]  
+> _If you need help, feel free to ask questions on our [forum](https://forum.helloid.com/forum/helloid-connectors/provisioning/1145-helloid-provisioning-helloid-conn-prov-target-sibi)_. 
 
 ## HelloID docs
 
