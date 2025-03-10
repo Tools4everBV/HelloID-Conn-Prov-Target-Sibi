@@ -92,6 +92,12 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 - This connector can only manage users created via the API. It cannot manage accounts created manually. For manually created users, Sibi must first take an action (such as activating or updating the user) before they can be managed via the API. Until Sibi performs this action, the connector cannot handle those accounts.
 
+### Best Practice for Setting Start and End Dates
+
+- The **start date** of an employee is best set using a **custom field** that maps to the `originalHireDate` from the source system (HR). This is important because it is used for **tenure tracking**, **work anniversaries**, and **internal Sibi onboarding processes**.
+- The **end date** is equally critical, as it is used for **internal Sibi offboarding processes**.
+- Ensuring these fields are correctly mapped prevents issues with employment history, recognition programs, and automated onboarding/offboarding workflows within Sibi.
+
 ### Departments and Job Positions
 
 The `departments` and `job_positions` fields in the Sibi API are represented as arrays of objects, which HelloID’s field mapping doesn’t currently support. Therefore, these fields are populated through PowerShell scripts.
