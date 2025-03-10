@@ -190,12 +190,12 @@ try {
 
                 $outputContext.AuditLogs.Add([PSCustomObject]@{
                         # Action  = "" # Optional
-                        Message = "Updated account with AccountReference: $($actionContext.References.Account | ConvertTo-Json). Old values: $($accountChangedPropertiesObject.oldValues | ConvertTo-Json). New values: $($accountChangedPropertiesObject.newValues | ConvertTo-Json)."
+                        Message = "Updated account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)."
                         IsError = $false
                     })
             }
             else {
-                Write-Warning "DryRun: Would update account with AccountReference: $($actionContext.References.Account | ConvertTo-Json). Old values: $($accountChangedPropertiesObject.oldValues | ConvertTo-Json). New values: $($accountChangedPropertiesObject.newValues | ConvertTo-Json)."
+                Write-Warning "DryRun: Would update account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)."
             }
 
             break
