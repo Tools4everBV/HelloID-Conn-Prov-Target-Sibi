@@ -46,23 +46,7 @@ function Resolve-SibiError {
 
 try {
     # Define account object
-    $account = [PSCustomObject]$actionContext.Data.PsObject.Copy()
-
-    # Remove properties of account object with null-values
-    $account.PsObject.Properties | ForEach-Object {
-        # Remove properties with null-values
-        if ($_.Value -eq $null) {
-            $account.PsObject.Properties.Remove("$($_.Name)")
-        }
-    }
-
-    # Convert properties of account object with empty string to null-value
-    $account.PsObject.Properties | ForEach-Object {
-        # Convert properties with empty string to null-value
-        if ($_.Value -eq "") {
-            $_.Value = $null
-        }
-    }
+    $account = [PSCustomObject]$actionContext.Data
 
     # Verify if [aRef] has a value
     $actionMessage = "verifying account reference"
@@ -77,27 +61,9 @@ try {
     $contractsInScope = [System.Collections.ArrayList]@()
     $currentDate = Get-Date
 
-    # Use active contracts
+    # Use contracts in conditions
     $contractsInScope = $personContext.Person.Contracts | Where-Object {
-        ($_.StartDate -as [datetime]) -le $currentDate -and (($_.EndDate -as [datetime]) -ge $currentDate -or -not $_.EndDate)
-    }
-
-    # No active contracts
-    if (-not $contractsInScope) {
-        if ($personContext.Person.PrimaryContract.StartDate -as [datetime] -gt $currentDate) {
-            # Primary contract is in the future, use contracts that are in conditions and not expired
-            Write-Information "Primary contract is in the future. Checking contracts in conditions and not expired."
-            $contractsInScope = $personContext.Person.Contracts | Where-Object {
-                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and ($_.EndDate -as [datetime] -ge $currentDate -or -not $_.EndDate)
-            }
-        }
-        elseif ($personContext.Person.PrimaryContract.StartDate -as [datetime] -lt $currentDate) {
-            # Primary contract is in the past, use contracts that are in conditions and not started yet
-            Write-Information "Primary contract is in the past. Checking contracts in conditions and not started yet."
-            $contractsInScope = $personContext.Person.Contracts | Where-Object {
-                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and $_.StartDate -as [datetime] -le $currentDate
-            }
-        }
+        (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true))
     }
 
     if (-Not($actionContext.DryRun -eq $true)) {
@@ -177,7 +143,7 @@ try {
         $actionMessage = "comparing current account to mapped properties"
 
         # Set Previous data (if there are no changes between PreviousData and Data, HelloID will log "update finished with no changes")
-        $outputContext.PreviousData = $correlatedAccount.PsObject.Copy()
+        $outputContext.PreviousData = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
         $accountSplatCompareProperties = @{
             ReferenceObject  = @($correlatedAccount.PSObject.Properties | Where-Object { $_.Name -in ($account).PSObject.Properties.Name })
@@ -270,7 +236,7 @@ try {
             $actionMessage = "updating account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)"
 
             # Set $outputContext.Data with correlated account (to support getting data for 'None' mapped fields)
-            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+            $outputContext.Data = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
             # Update $outputContext.Data with updated fields
             foreach ($newValue in $accountChangedPropertiesObject.NewValues.Keys) {
@@ -307,7 +273,7 @@ try {
         'NoChanges' {
             $actionMessage = "skipping updating account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)"
 
-            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+            $outputContext.Data = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     # Action  = "" # Optional

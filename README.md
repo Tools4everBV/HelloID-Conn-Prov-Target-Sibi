@@ -13,7 +13,7 @@
   - [Table of contents](#table-of-contents)
   - [Introduction](#introduction)
   - [Getting started](#getting-started)
-    - [Prerequisites](#prerequisites)
+    - [Requirements](#requirements)
     - [Connection settings](#connection-settings)
     - [Correlation configuration](#correlation-configuration)
     - [Available lifecycle actions](#available-lifecycle-actions)
@@ -21,6 +21,7 @@
   - [Remarks](#remarks)
     - [Sibi API](#sibi-api)
     - [User Management Limitations](#user-management-limitations)
+    - [Best Practice for Setting Start and End Dates](#best-practice-for-setting-start-and-end-dates)
     - [Departments and Job Positions](#departments-and-job-positions)
     - [Handling Null Values in Field Mapping](#handling-null-values-in-field-mapping)
   - [Development resources](#development-resources)
@@ -35,9 +36,13 @@ _HelloID-Conn-Prov-Target-Sibi_ is a _target_ connector. Sibi provides a set of 
 
 ## Getting started
 
-### Prerequisites
+### Requirements
 
-Before using this connector, make sure you have the appropriate API key to connect to the API.
+- A valid **API key** to authenticate with the Sibi API.
+- A **custom field** called `originalHireDate` in the HelloID person model, mapped to the employee’s original hire date from the source system (e.g. an HR system).  
+  _This field is required, as the connector expects it in the fieldMapping. It’s used to populate the `employment_start` field in Sibi, which determines tenure and work anniversaries._
+- A **custom field** called `originalDischargeDate` in the HelloID person model, mapped to the employee’s latest end date from the source system.  
+  _This field is required, as the connector expects it in the fieldMapping. It’s used to populate the `employment_end` field in Sibi, which controls account deactivation._
 
 ### Connection settings
 
@@ -94,9 +99,10 @@ The field mapping can be imported by using the _fieldMapping.json_ file.
 
 ### Best Practice for Setting Start and End Dates
 
-- The **start date** of an employee is best set using a **custom field** that maps to the `originalHireDate` from the source system (HR). This is important because it is used for **tenure tracking**, **work anniversaries**, and **internal Sibi onboarding processes**.
-- The **end date** is equally critical, as it is used for **internal Sibi offboarding processes**.
+- The **employment_start** field is best set using a **custom field** that maps to the `originalHireDate` from the source system (HR). This is important because it is used for **tenure tracking**, **work anniversaries**, and **internal Sibi onboarding processes**.
+- The **employment_end** field is equally critical, as it is used for **internal Sibi offboarding processes**.
 - Ensuring these fields are correctly mapped prevents issues with employment history, recognition programs, and automated onboarding/offboarding workflows within Sibi.
+- Setting both values via custom fields mapped from the source system (typically HR) ensures reliable onboarding and offboarding flows within Sibi.
 
 ### Departments and Job Positions
 

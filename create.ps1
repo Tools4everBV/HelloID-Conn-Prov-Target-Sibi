@@ -46,51 +46,20 @@ function Resolve-SibiError {
 
 try {
     # Define account object
-    $account = [PSCustomObject]$actionContext.Data.PsObject.Copy()
+    $account = [PSCustomObject]$actionContext.Data
 
-    # Remove properties of account object with null-values
-    $account.PsObject.Properties | ForEach-Object {
-        # Remove properties with null-values
-        if ($_.Value -eq $null) {
-            $account.PsObject.Properties.Remove("$($_.Name)")
-        }
-    }
+    # Define properties to query
+    $accountPropertiesToQuery = @("id") + $outputContext.Data.PsObject.Properties.Name | Select-Object -Unique
 
-    # Convert properties of account object with empty string to null-value
-    $account.PsObject.Properties | ForEach-Object {
-        # Convert properties with empty string to null-value
-        if ($_.Value -eq "") {
-            $_.Value = $null
-        }
-    }
-    
     # Calculate contracts in scope
     $actionMessage = "Calculating contracts in scope"
 
     $contractsInScope = [System.Collections.ArrayList]@()
     $currentDate = Get-Date
 
-    # Use active contracts
+    # Use contracts in conditions
     $contractsInScope = $personContext.Person.Contracts | Where-Object {
-        ($_.StartDate -as [datetime]) -le $currentDate -and (($_.EndDate -as [datetime]) -ge $currentDate -or -not $_.EndDate)
-    }
-
-    # No active contracts
-    if (-not $contractsInScope) {
-        if ($personContext.Person.PrimaryContract.StartDate -as [datetime] -gt $currentDate) {
-            # Primary contract is in the future, use contracts that are in conditions and not expired
-            Write-Information "Primary contract is in the future. Checking contracts in conditions and not expired."
-            $contractsInScope = $personContext.Person.Contracts | Where-Object {
-                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and ($_.EndDate -as [datetime] -ge $currentDate -or -not $_.EndDate)
-            }
-        }
-        elseif ($personContext.Person.PrimaryContract.StartDate -as [datetime] -lt $currentDate) {
-            # Primary contract is in the past, use contracts that are in conditions and not started yet
-            Write-Information "Primary contract is in the past. Checking contracts in conditions and not started yet."
-            $contractsInScope = $personContext.Person.Contracts | Where-Object {
-                (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true)) -and $_.StartDate -as [datetime] -le $currentDate
-            }
-        }
+        (($actionContext.DryRun -eq $true -or $_.Context.InConditions -eq $true))
     }
 
     if (-Not($actionContext.DryRun -eq $true)) {
@@ -156,7 +125,7 @@ try {
                 Headers     = $headers
                 ContentType = 'application/json'
             }
-            $correlatedAccount = (Invoke-RestMethod @splatParams).employee | Select-Object (@("id") + $account.PsObject.Properties.Name)
+            $correlatedAccount = (Invoke-RestMethod @splatParams).employee | Select-Object $accountPropertiesToQuery
         }
         catch {
             $ex = $PSItem
@@ -217,7 +186,7 @@ try {
                 }
                 $createdAccount = (Invoke-RestMethod @splatParams).employee
 
-                $outputContext.Data = $createdAccount | Select-Object (@("id") + $account.PsObject.Properties.Name)
+                $outputContext.Data = $createdAccount | Select-Object $accountPropertiesToQuery
                 $outputContext.AccountReference = "$($createdAccount.id)"
 
                 $outputContext.AuditLogs.Add([PSCustomObject]@{
@@ -237,7 +206,7 @@ try {
             $actionMessage = "correlating to account with AccountReference: $($correlatedAccount.id) on [$($correlationField)] = [$($correlationValue)]"
 
             $outputContext.AccountReference = "$($correlatedAccount.id)"
-            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+            $outputContext.Data = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     Action  = "CorrelateAccount" # Optionally specify a different action for this audit log

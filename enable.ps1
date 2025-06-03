@@ -46,23 +46,7 @@ function Resolve-SibiError {
 
 try {
     # Define account object
-    $account = [PSCustomObject]$actionContext.Data.PsObject.Copy()
-
-    # Remove properties of account object with null-values
-    $account.PsObject.Properties | ForEach-Object {
-        # Remove properties with null-values
-        if ($_.Value -eq $null) {
-            $account.PsObject.Properties.Remove("$($_.Name)")
-        }
-    }
-
-    # Convert properties of account object with empty string to null-value
-    $account.PsObject.Properties | ForEach-Object {
-        # Convert properties with empty string to null-value
-        if ($_.Value -eq "") {
-            $_.Value = $null
-        }
-    }
+    $account = [PSCustomObject]$actionContext.Data
 
     # Verify if [aRef] has a value
     $actionMessage = "verifying account reference"
@@ -114,7 +98,7 @@ try {
         $actionMessage = "comparing current account to mapped properties"
 
         # Set Previous data (if there are no changes between PreviousData and Data, HelloID will log "update finished with no changes")
-        $outputContext.PreviousData = $correlatedAccount.PsObject.Copy()
+        $outputContext.PreviousData = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
         $accountSplatCompareProperties = @{
             ReferenceObject  = @($correlatedAccount.PSObject.Properties | Where-Object { $_.Name -in ($account).PSObject.Properties.Name })
@@ -167,7 +151,7 @@ try {
             $actionMessage = "updating account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)"
 
             # Set $outputContext.Data with correlated account (to support getting data for 'None' mapped fields)
-            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+            $outputContext.Data = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
             # Update $outputContext.Data with updated fields
             foreach ($newValue in $accountChangedPropertiesObject.NewValues.Keys) {
@@ -204,7 +188,7 @@ try {
         'NoChanges' {
             $actionMessage = "skipping updating account with AccountReference: $($actionContext.References.Account | ConvertTo-Json)"
 
-            $outputContext.Data = $correlatedAccount.PsObject.Copy()
+            $outputContext.Data = $correlatedAccount | Select-Object $accountPropertiesToQuery
 
             $outputContext.AuditLogs.Add([PSCustomObject]@{
                     # Action  = "" # Optional

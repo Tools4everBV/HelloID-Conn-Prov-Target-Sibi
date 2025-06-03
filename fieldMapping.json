@@ -46,7 +46,7 @@
             "Update"
           ],
           "MappingMode": "Complex",
-          "Value": "\"function getEmail(){\\r\\n    let email = Person.Accounts._8228003b5f304f0a9383324e921fc263.mail;\\r\\n\\r\\n    return email;\\r\\n}\\r\\n\\r\\ngetEmail();\"",
+          "Value": "\"function getEmail(){\\r\\n    let email = Person.Accounts.MicrosoftActiveDirectory.mail;\\r\\n\\r\\n    return email;\\r\\n}\\r\\n\\r\\ngetEmail();\"",
           "UsedInNotifications": false,
           "StoreInAccountData": true
         }
@@ -98,8 +98,8 @@
             "Enable",
             "Disable"
           ],
-          "MappingMode": "Complex",
-          "Value": "\"function getLatestEndDate() {\\r\\n    // Assuming Person.contracts is an array of contract objects\\r\\n    const contracts = Array.from(Person.contracts);\\r\\n\\r\\n    // Filter contracts where InConditions is true\\r\\n    let filteredContracts = contracts.filter(contract => contract.Context && contract.Context.InConditions);\\r\\n\\r\\n    // If no contracts meet the InConditions criteria, use all contracts\\r\\n    if (filteredContracts.length === 0) {\\r\\n        filteredContracts = contracts;\\r\\n    }\\r\\n\\r\\n    // Check if any contract has an indefinite end date\\r\\n    const hasIndefiniteContract = filteredContracts.some(contract => !contract.EndDate);\\r\\n\\r\\n    if (hasIndefiniteContract) {\\r\\n        return '';\\r\\n    }\\r\\n\\r\\n    // Find the latest end date\\r\\n    const latestEndDate = filteredContracts.reduce((latest, contract) => {\\r\\n        return new Date(contract.EndDate) > new Date(latest.EndDate) ? contract : latest;\\r\\n    }, { EndDate: '1970-01-01' }).EndDate; // Initialize with a very old date\\r\\n\\r\\n    return latestEndDate !== '1970-01-01' ? latestEndDate : '';\\r\\n}\\r\\n\\r\\nfunction convertDate(date) {\\r\\n    // Get day, month, and year components\\r\\n    const day = date.getDate().toString().padStart(2, '0');\\r\\n    const month = (date.getMonth() + 1).toString().padStart(2, '0');\\r\\n    const year = date.getFullYear();\\r\\n\\r\\n    // Format the date as \\\"yyyy-MM-dd\\\"\\r\\n    return `${year}-${month}-${day}`;\\r\\n}\\r\\n\\r\\n// Example usage:\\r\\nfunction getEndDate() {\\r\\n    const latestEndDate = getLatestEndDate();\\r\\n    const returnDate = latestEndDate ? convertDate(new Date(latestEndDate)) : '';\\r\\n\\r\\n    return returnDate;\\r\\n}\\r\\n\\r\\ngetEndDate();\"",
+          "MappingMode": "Field",
+          "Value": "\"Person.PrimaryContract.Custom.OriginalDischargeDate\"",
           "UsedInNotifications": false,
           "StoreInAccountData": true
         }
